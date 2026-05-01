@@ -1,13 +1,32 @@
 <template>
   <div class="home">
-    <div class="dashboard-header">
-      <div class="header-info">
-        <h2>Tu Colección 🏆</h2>
-        <div class="progress-badge">
-          <span class="label">Progreso Global:</span>
-          <div class="progress-text">{{ progresoTotal }} / 994 <span class="percentage">({{ globalPercentage }}%)</span></div>
-          <div class="progress-bar-global">
-            <div class="fill-global" :style="{ width: globalPercentage + '%' }"></div>
+    <!-- Hero Progress Section -->
+    <div class="hero-section">
+      <div class="hero-content">
+        <div class="hero-left">
+          <h2 class="hero-title">
+            Tu <span class="gradient-text">Colección</span>
+          </h2>
+          <p class="hero-subtitle">FIFA World Cup 2026™</p>
+        </div>
+        <div class="hero-right">
+          <div class="progress-ring-container">
+            <svg class="progress-ring" viewBox="0 0 120 120">
+              <circle class="ring-bg" cx="60" cy="60" r="52" />
+              <circle
+                class="ring-fill"
+                cx="60" cy="60" r="52"
+                :style="{ strokeDashoffset: ringOffset }"
+              />
+            </svg>
+            <div class="ring-label">
+              <span class="ring-percentage">{{ globalPercentage }}%</span>
+            </div>
+          </div>
+          <div class="progress-detail">
+            <span class="progress-count">{{ progresoTotal }}</span>
+            <span class="progress-divider">/</span>
+            <span class="progress-total">994</span>
           </div>
         </div>
       </div>
@@ -20,29 +39,22 @@
         <input 
           type="text" 
           v-model="searchQuery" 
-          placeholder="Buscar país, código o figurita (ej. ARG 1)..."
+          placeholder="Buscar país, código o figurita..."
           class="search-input"
         />
+        <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</button>
       </div>
       
       <div class="controls">
         <div class="filter-group">
           <button 
-            :class="['filter-btn', { active: filterType === 'all' }]" 
-            @click="filterType = 'all'"
-          >Todas</button>
-          <button 
-            :class="['filter-btn', { active: filterType === 'obtained' }]" 
-            @click="filterType = 'obtained'"
-          >Obtenidas</button>
-          <button 
-            :class="['filter-btn', { active: filterType === 'missing' }]" 
-            @click="filterType = 'missing'"
-          >Faltantes</button>
+            v-for="f in filters" :key="f.value"
+            :class="['filter-btn', { active: filterType === f.value }]" 
+            @click="filterType = f.value"
+          >{{ f.label }}</button>
         </div>
 
         <div class="sort-group">
-          <label>Ordenar:</label>
           <select v-model="sortBy" class="sort-select">
             <option value="country">Por País</option>
             <option value="progress-desc">Mayor Progreso</option>
@@ -52,17 +64,27 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-      <p>Cargando tu álbum...</p>
+    <!-- Loading State with Skeleton -->
+    <div v-if="loading" class="skeleton-grid">
+      <div v-for="i in 12" :key="i" class="skeleton-card">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-bar"></div>
+        <div class="skeleton skeleton-footer"></div>
+      </div>
     </div>
-    <div v-else-if="error" class="error">{{ error }}</div>
+
+    <div v-else-if="error" class="feedback-card error">
+      <span class="feedback-icon">⚠️</span>
+      <p>{{ error }}</p>
+    </div>
+
     <div v-else>
-      <div v-if="filteredAndSortedColeccion.length === 0" class="no-results">
-        <p>No se encontraron resultados para tu búsqueda.</p>
+      <div v-if="filteredAndSortedColeccion.length === 0" class="feedback-card empty">
+        <span class="feedback-icon">🔎</span>
+        <p>No se encontraron resultados para "<strong>{{ searchQuery }}</strong>"</p>
       </div>
       
-      <div class="countries-grid">
+      <TransitionGroup name="grid-item" tag="div" class="countries-grid">
         <CountryCard
           v-for="country in filteredAndSortedColeccion"
           :key="country.codigo"
@@ -70,27 +92,31 @@
           :filter-type="filterType"
           @click="selectCountry(country)"
         />
-      </div>
+      </TransitionGroup>
     </div>
 
-    <!-- Modal para ver figuritas de un país -->
-    <div v-if="selectedCountry" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <div class="modal-title-group">
-            <h3>{{ selectedCountry.pais }}</h3>
-            <span class="modal-code">{{ selectedCountry.codigo }}</span>
+    <!-- Modal -->
+    <Transition name="modal">
+      <div v-if="selectedCountry" class="modal-overlay" @click.self="closeModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title-group">
+              <h3>{{ selectedCountry.pais }}</h3>
+              <span class="modal-code">{{ selectedCountry.codigo }}</span>
+            </div>
+            <button class="close-btn" @click="closeModal">
+              <span>✕</span>
+            </button>
           </div>
-          <button class="close-btn" @click="closeModal">&times;</button>
+          <StickerGrid
+            :country="selectedCountry"
+            :filter-type="filterType"
+            :search-query="searchQuery"
+            @update-sticker="handleUpdateSticker"
+          />
         </div>
-        <StickerGrid
-          :country="selectedCountry"
-          :filter-type="filterType"
-          :search-query="searchQuery"
-          @update-sticker="handleUpdateSticker"
-        />
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
 
@@ -110,20 +136,30 @@ const loading = ref(true);
 const error = ref('');
 const selectedCountry = ref(null);
 
-// Toolbar state
 const searchQuery = ref('');
-const filterType = ref('all'); // 'all', 'obtained', 'missing'
-const sortBy = ref('country'); // 'country', 'progress-desc', 'progress-asc'
+const filterType = ref('all');
+const sortBy = ref('country');
+
+const filters = [
+  { value: 'all', label: 'Todas' },
+  { value: 'obtained', label: 'Obtenidas' },
+  { value: 'missing', label: 'Faltantes' }
+];
 
 const globalPercentage = computed(() => {
-  return ((progresoTotal.value / 994) * 100).toFixed(0); // Precise percentage with 0 decimals
+  return ((progresoTotal.value / 994) * 100).toFixed(0);
 });
 
-// Computed property to filter and sort the collection
+// SVG ring offset calculation
+const ringOffset = computed(() => {
+  const circumference = 2 * Math.PI * 52; // r=52
+  const percent = progresoTotal.value / 994;
+  return circumference - (percent * circumference);
+});
+
 const filteredAndSortedColeccion = computed(() => {
   let result = coleccion.value;
 
-  // 1. Apply Search Query
   const query = searchQuery.value.toLowerCase().trim();
   if (query) {
     result = result.filter(c => {
@@ -134,10 +170,8 @@ const filteredAndSortedColeccion = computed(() => {
     });
   }
 
-  // 2. Apply Filters (if 'obtained', only show countries that have obtained stickers that match query, etc. Actually easier: just filter countries if they have >0 matching stickers according to the current filter)
   if (filterType.value !== 'all') {
     result = result.filter(c => {
-      // How many stickers in this country match the current filter?
       const matchingStickers = c.figuritas.filter(f => {
         if (filterType.value === 'obtained') return f.obtenida;
         if (filterType.value === 'missing') return !f.obtenida;
@@ -147,17 +181,12 @@ const filteredAndSortedColeccion = computed(() => {
     });
   }
 
-  // 3. Apply Sorting
   result = [...result].sort((a, b) => {
     if (sortBy.value === 'country') {
-      // assuming original array is ordered by album order (we don't want to mess it up if they sort by country, maybe we leave it as is if country is selected, because original order is FWC, MEX, etc).
-      // Let's rely on the original index if 'country' is selected. We can do that by just not sorting or using a stored original index.
-      // But if we must sort:
-      return 0; // Keep original album order
+      return 0;
     } else {
       const progA = a.figuritas.filter(f => f.obtenida).length;
       const progB = b.figuritas.filter(f => f.obtenida).length;
-      
       if (sortBy.value === 'progress-desc') return progB - progA;
       if (sortBy.value === 'progress-asc') return progA - progB;
     }
@@ -214,18 +243,14 @@ const closeModal = () => {
 const handleUpdateSticker = async (codigo_pais, figura, nuevaObtenida) => {
   try {
     const token = localStorage.getItem('token');
-    // Optimistic update locally
     const country = coleccion.value.find(c => c.codigo === codigo_pais);
-    let previousState = false;
     if (country) {
       const sticker = country.figuritas.find(f => f.figura === figura);
       if (sticker) {
-        previousState = sticker.obtenida;
         sticker.obtenida = nuevaObtenida;
       }
     }
     
-    // Recalculate global progress locally
     let total = 0;
     coleccion.value.forEach(c => {
       c.figuritas.forEach(f => {
@@ -234,7 +259,6 @@ const handleUpdateSticker = async (codigo_pais, figura, nuevaObtenida) => {
     });
     progresoTotal.value = total;
 
-    // Send request
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     await axios.put(`${apiUrl}/api/coleccion/figurita`, {
       codigo_pais,
@@ -246,90 +270,144 @@ const handleUpdateSticker = async (codigo_pais, figura, nuevaObtenida) => {
 
   } catch (err) {
     console.error('Error al actualizar figurita', err);
-    // Revert on error
     alert('No se pudo guardar la figurita en el servidor.');
   }
 };
 </script>
 
 <style scoped>
-.dashboard-header {
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
+/* Hero Section */
+.hero-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
   padding: 2rem;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 2rem;
-  border-left: 6px solid var(--gold);
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
 }
 
-.header-info {
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-hero);
+}
+
+.hero-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
-.header-info h2 {
-  color: var(--pitch-green);
-  font-size: 2rem;
+.hero-title {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.hero-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* Progress Ring */
+.progress-ring-container {
+  position: relative;
+  width: 90px;
+  height: 90px;
+}
+
+.progress-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring-bg {
+  fill: none;
+  stroke: var(--bg-card);
+  stroke-width: 8;
+}
+
+.ring-fill {
+  fill: none;
+  stroke: url(#ring-gradient);
+  stroke: var(--wc-mint);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 326.7;
+  transition: stroke-dashoffset 0.8s var(--ease-smooth);
+}
+
+.ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring-percentage {
+  font-size: 1.3rem;
   font-weight: 800;
+  color: var(--wc-mint);
 }
 
-.progress-badge {
-  background: var(--bg-color);
-  padding: 1rem 1.5rem;
-  border-radius: var(--radius-md);
-  min-width: 300px;
+.progress-detail {
+  display: flex;
+  align-items: baseline;
+  gap: 0.2rem;
 }
 
-.progress-badge .label {
-  font-size: 0.9rem;
+.progress-count {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.progress-divider {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  margin: 0 0.15rem;
+}
+
+.progress-total {
+  font-size: 1.2rem;
   color: var(--text-muted);
   font-weight: 600;
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
-  display: block;
-}
-
-.progress-text {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--pitch-green);
-  margin-bottom: 0.5rem;
-}
-
-.progress-text .percentage {
-  font-size: 1rem;
-  color: var(--gold);
-}
-
-.progress-bar-global {
-  height: 10px;
-  background: #e0e0e0;
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.fill-global {
-  height: 100%;
-  background: linear-gradient(90deg, var(--pitch-green) 0%, var(--gold) 100%);
-  border-radius: 5px;
-  transition: width 0.5s ease-out;
 }
 
 /* Toolbar */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
   gap: 1rem;
-  margin-bottom: 2rem;
-  background: var(--card-bg);
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.5rem;
+  align-items: center;
 }
 
 .search-box {
@@ -343,158 +421,225 @@ const handleUpdateSticker = async (codigo_pais, figura, nuevaObtenida) => {
   left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-muted);
+  font-size: 0.9rem;
+  opacity: 0.5;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.8rem 1rem 0.8rem 2.5rem;
-  border: 2px solid #eee;
+  padding: 0.75rem 2.5rem 0.75rem 2.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  font-size: 1rem;
-  transition: var(--smooth-transition);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: 'Outfit', sans-serif;
+  transition: all 0.3s;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--pitch-green);
-  box-shadow: 0 0 0 3px rgba(10, 92, 54, 0.1);
+  border-color: var(--wc-mint);
+  box-shadow: 0 0 0 3px rgba(86, 224, 192, 0.12);
+}
+
+.search-clear {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-elevated);
+  border: none;
+  color: var(--text-muted);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.search-clear:hover {
+  background: var(--wc-red);
+  color: white;
 }
 
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: 0.75rem;
   align-items: center;
 }
 
 .filter-group {
   display: flex;
-  background: var(--bg-color);
-  border-radius: 8px;
-  padding: 0.25rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 3px;
 }
 
 .filter-btn {
   background: none;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  padding: 0.45rem 1rem;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.85rem;
   color: var(--text-muted);
-  transition: all 0.2s;
+  transition: all 0.25s;
+  font-family: 'Outfit', sans-serif;
 }
 
 .filter-btn:hover {
-  color: var(--text-main);
+  color: var(--text-primary);
 }
 
 .filter-btn.active {
-  background: white;
-  color: var(--pitch-green);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.sort-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.sort-group label {
-  font-weight: 600;
-  color: var(--text-muted);
+  background: var(--wc-mint);
+  color: var(--bg-color);
 }
 
 .sort-select {
   padding: 0.5rem 1rem;
-  border: 2px solid #eee;
-  border-radius: 8px;
-  background: white;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
   font-weight: 600;
-  color: var(--text-main);
+  font-size: 0.85rem;
   cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  transition: border-color 0.3s;
 }
 
 .sort-select:focus {
   outline: none;
-  border-color: var(--pitch-green);
+  border-color: var(--wc-mint);
 }
 
 /* Grid */
 .countries-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
-.loading, .error, .no-results {
-  text-align: center;
-  padding: 4rem;
-  font-size: 1.2rem;
-  color: var(--text-muted);
-  background: var(--card-bg);
+/* Grid item transitions */
+.grid-item-enter-active {
+  transition: all 0.4s var(--ease-smooth);
+}
+.grid-item-leave-active {
+  transition: all 0.3s var(--ease-smooth);
+}
+.grid-item-enter-from {
+  opacity: 0;
+  transform: scale(0.92);
+}
+.grid-item-leave-to {
+  opacity: 0;
+  transform: scale(0.92);
+}
+
+/* Skeleton Grid */
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.skeleton-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.spinner {
-  border: 4px solid rgba(0,0,0,0.1);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border-left-color: var(--pitch-green);
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem auto;
+.skeleton-title {
+  height: 24px;
+  width: 60%;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.skeleton-bar {
+  height: 10px;
+  width: 100%;
 }
 
-.error {
-  color: #e74c3c;
+.skeleton-footer {
+  height: 18px;
+  width: 40%;
 }
 
-/* Modal Styles */
+/* Feedback Cards */
+.feedback-card {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+}
+
+.feedback-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.feedback-card p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.feedback-card.error {
+  border-color: rgba(227, 24, 55, 0.3);
+}
+
+.feedback-card.error p {
+  color: var(--wc-red);
+}
+
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(10, 92, 54, 0.4);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
 }
 
 .modal-content {
-  background: var(--bg-color);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   width: 95%;
   max-width: 900px;
   max-height: 90vh;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-lg);
-  animation: modalIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   overflow: hidden;
-}
-
-@keyframes modalIn {
-  from { opacity: 0; transform: translateY(30px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .modal-header {
   padding: 1.5rem 2rem;
-  background: var(--card-bg);
-  border-bottom: 2px solid #eee;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -503,50 +648,86 @@ const handleUpdateSticker = async (codigo_pais, figura, nuevaObtenida) => {
 .modal-title-group {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .modal-title-group h3 {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: 800;
-  color: var(--pitch-green);
+  color: var(--text-primary);
 }
 
 .modal-code {
-  background: var(--gold);
-  color: white;
-  padding: 0.3rem 0.6rem;
-  border-radius: 4px;
-  font-weight: 700;
-  font-size: 0.9rem;
+  background: var(--wc-mint);
+  color: var(--bg-color);
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
 }
 
 .close-btn {
-  background: #f1f2f6;
-  border: none;
-  width: 40px;
-  height: 40px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  font-size: 1.5rem;
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
   justify-content: center;
   align-items: center;
+  font-size: 0.9rem;
   transition: all 0.2s;
 }
 
 .close-btn:hover {
-  background: #ff6b81;
+  background: var(--wc-red);
+  border-color: var(--wc-red);
   color: white;
   transform: rotate(90deg);
 }
 
+/* Modal Transitions */
+.modal-enter-active {
+  transition: opacity 0.3s;
+}
+.modal-enter-active .modal-content {
+  animation: modalIn 0.35s var(--ease-spring);
+}
+.modal-leave-active {
+  transition: opacity 0.25s;
+}
+.modal-leave-active .modal-content {
+  animation: modalOut 0.25s var(--ease-smooth);
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes modalOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(15px) scale(0.97); }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
-  .header-info h2 {
-    font-size: 1.5rem;
+  .hero-title {
+    font-size: 1.6rem;
+  }
+  .hero-content {
+    flex-direction: column;
+    text-align: center;
+  }
+  .hero-right {
+    justify-content: center;
   }
   .toolbar {
     flex-direction: column;
@@ -558,6 +739,22 @@ const handleUpdateSticker = async (codigo_pais, figura, nuevaObtenida) => {
   }
   .filter-group {
     justify-content: space-between;
+  }
+  .countries-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-section {
+    padding: 1.5rem;
+  }
+  .progress-ring-container {
+    width: 70px;
+    height: 70px;
+  }
+  .progress-count {
+    font-size: 1.5rem;
   }
 }
 </style>

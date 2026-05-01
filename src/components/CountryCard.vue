@@ -1,15 +1,21 @@
 <template>
-  <div class="country-card">
-    <div class="card-header">
-      <h3>{{ country.pais }}</h3>
-      <span class="code-badge">{{ country.codigo }}</span>
-    </div>
+  <div class="country-card" :class="{ 'card-complete': progressPercentage === 100 }">
+    <div class="card-accent"></div>
     
-    <div class="card-content">
-      <div class="progress-info">
+    <div class="card-body">
+      <div class="card-header">
+        <h3>{{ country.pais }}</h3>
+        <span class="code-badge">{{ country.codigo }}</span>
+      </div>
+      
+      <div class="card-progress">
         <div class="progress-stats">
-          <span class="label">Completado</span>
-          <span class="count"><span class="highlight">{{ obtainedCount }}</span> / {{ country.figuritas.length }}</span>
+          <span class="count">
+            <span class="obtained">{{ obtainedCount }}</span>
+            <span class="separator">/</span>
+            <span class="total">{{ country.figuritas.length }}</span>
+          </span>
+          <span class="percent">{{ Math.round(progressPercentage) }}%</span>
         </div>
         <div class="progress-bar">
           <div class="fill" :style="{ width: progressPercentage + '%' }"></div>
@@ -18,8 +24,8 @@
     </div>
     
     <div class="card-footer">
-      <span>Abrir Equipo</span>
-      <span class="arrow">→</span>
+      <span class="footer-text">Abrir</span>
+      <span class="footer-arrow">→</span>
     </div>
   </div>
 </template>
@@ -50,133 +56,161 @@ const progressPercentage = computed(() => {
 
 <style scoped>
 .country-card {
-  background: var(--card-bg);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: all 0.35s var(--ease-smooth);
   display: flex;
   flex-direction: column;
-  border: 1px solid #f1f2f6;
   position: relative;
 }
 
-.country-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(90deg, var(--pitch-green), var(--gold));
+.card-accent {
+  height: 3px;
+  background: var(--gradient-primary);
   opacity: 0;
   transition: opacity 0.3s;
 }
 
 .country-card:hover {
-  transform: translateY(-8px) scale(1.02);
+  transform: translateY(-6px);
   box-shadow: var(--shadow-md);
+  border-color: rgba(86, 224, 192, 0.2);
 }
 
-.country-card:hover::before {
+.country-card:hover .card-accent {
   opacity: 1;
 }
 
+.country-card:active {
+  transform: translateY(-2px) scale(0.99);
+}
+
+/* Completed state */
+.card-complete {
+  border-color: rgba(86, 224, 192, 0.3);
+}
+
+.card-complete .card-accent {
+  opacity: 1;
+  background: var(--gradient-warm);
+}
+
+.card-body {
+  padding: 1.25rem 1.5rem;
+  flex: 1;
+}
+
 .card-header {
-  padding: 1.5rem 1.5rem 0.5rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  margin-bottom: 1rem;
 }
 
 h3 {
   margin: 0;
-  color: var(--text-main);
-  font-size: 1.3rem;
-  font-weight: 800;
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .code-badge {
-  background: #f1f2f6;
+  background: var(--bg-card);
   color: var(--text-muted);
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 1px;
+  border: 1px solid var(--border-color);
 }
 
-.card-content {
-  padding: 1rem 1.5rem;
-  flex: 1;
-}
-
-.progress-info {
+/* Progress */
+.card-progress {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.5rem;
 }
 
 .progress-stats {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-}
-
-.progress-stats .label {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
+  align-items: center;
 }
 
 .count {
-  font-size: 0.95rem;
-  color: var(--text-muted);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
-.count .highlight {
-  color: var(--pitch-green);
+.obtained {
+  color: var(--wc-mint);
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: 1rem;
+}
+
+.separator {
+  margin: 0 0.15rem;
+  color: var(--text-muted);
+}
+
+.total {
+  color: var(--text-muted);
+}
+
+.percent {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
 .progress-bar {
-  height: 8px;
-  background: #f1f2f6;
-  border-radius: 4px;
+  height: 6px;
+  background: var(--bg-card);
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .fill {
   height: 100%;
-  background: var(--pitch-green);
-  border-radius: 4px;
-  transition: width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+  background: var(--wc-mint);
+  border-radius: 3px;
+  transition: width 0.6s var(--ease-smooth);
 }
 
+/* Footer */
 .card-footer {
-  padding: 1rem 1.5rem;
-  background: rgba(10, 92, 54, 0.03);
-  border-top: 1px solid #f1f2f6;
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--pitch-green);
+}
+
+.footer-text {
+  font-size: 0.8rem;
   font-weight: 700;
-  font-size: 0.9rem;
+  color: var(--text-muted);
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-.arrow {
-  transition: transform 0.3s;
-  font-size: 1.2rem;
+.footer-arrow {
+  color: var(--text-muted);
+  transition: all 0.3s;
+  font-size: 1rem;
 }
 
-.country-card:hover .arrow {
-  transform: translateX(5px);
-  color: var(--gold);
+.country-card:hover .footer-text {
+  color: var(--wc-mint);
+}
+
+.country-card:hover .footer-arrow {
+  color: var(--wc-mint);
+  transform: translateX(4px);
 }
 </style>

@@ -9,7 +9,13 @@
         </div>
         <div class="form-group">
           <label>Contraseña</label>
-          <input type="password" v-model="password" required placeholder="••••••••" />
+          <div class="password-wrapper">
+            <input :type="showPassword ? 'text' : 'password'" v-model="password" required placeholder="••••••••" />
+            <button type="button" class="toggle-password" @click="showPassword = !showPassword" aria-label="Alternar visibilidad de contraseña">
+              <span v-if="showPassword">👁️‍🗨️</span>
+              <span v-else>👁️</span>
+            </button>
+          </div>
         </div>
         <button type="submit" class="btn-primary" :disabled="loading">
           {{ loading ? 'Creando cuenta...' : 'Registrarse' }}
@@ -31,6 +37,7 @@ import axios from 'axios';
 const router = useRouter();
 const email = ref('');
 const password = ref('');
+const showPassword = ref(false);
 const error = ref('');
 const loading = ref(false);
 
@@ -101,6 +108,35 @@ input:focus {
   border-color: #2a5298;
 }
 
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper input {
+  padding-right: 3rem;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.2rem;
+  color: #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s;
+}
+
+.toggle-password:active {
+  transform: scale(0.9);
+}
+
 .btn-primary {
   width: 100%;
   padding: 0.75rem;
@@ -117,6 +153,10 @@ input:focus {
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(30,60,114,0.3);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .btn-primary:disabled {

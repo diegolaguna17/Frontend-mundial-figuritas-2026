@@ -95,10 +95,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import CountryCard from '../components/CountryCard.vue';
 import StickerGrid from '../components/StickerGrid.vue';
+
+const route = useRoute();
+const router = useRouter();
 
 const coleccion = ref([]);
 const progresoTotal = ref(0);
@@ -171,6 +175,10 @@ const fetchColeccion = async () => {
     });
     coleccion.value = res.data.data.coleccion;
     progresoTotal.value = res.data.data.progreso_total;
+    
+    if (route.query.country) {
+      selectedCountry.value = coleccion.value.find(c => c.codigo === route.query.country) || null;
+    }
   } catch (err) {
     error.value = 'Error al cargar la colección. Por favor, intenta de nuevo.';
   } finally {
@@ -182,12 +190,25 @@ onMounted(() => {
   fetchColeccion();
 });
 
+watch(
+  () => route.query.country,
+  (newCountryCode) => {
+    if (newCountryCode && coleccion.value.length > 0) {
+      selectedCountry.value = coleccion.value.find(c => c.codigo === newCountryCode) || null;
+    } else {
+      selectedCountry.value = null;
+    }
+  }
+);
+
 const selectCountry = (country) => {
-  selectedCountry.value = country;
+  router.push({ query: { ...route.query, country: country.codigo } });
 };
 
 const closeModal = () => {
-  selectedCountry.value = null;
+  const query = { ...route.query };
+  delete query.country;
+  router.push({ query });
 };
 
 const handleUpdateSticker = async (codigo_pais, figura, nuevaObtenida) => {

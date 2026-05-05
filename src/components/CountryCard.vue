@@ -45,7 +45,7 @@ const props = defineProps({
 });
 
 const obtainedCount = computed(() => {
-  return props.country.figuritas.filter(f => f.obtenida).length;
+  return props.country.figuritas.filter(f => f.tiene).length;
 });
 
 const progressPercentage = computed(() => {

@@ -10,15 +10,20 @@
         :key="sticker.figura"
         :class="[
           'sticker-wrapper',
-          { obtenida: sticker.obtenida },
+          { obtenida: sticker.tiene },
           { 'special-00': sticker.figura === '00' }
         ]"
-        @click="toggleSticker(sticker)"
+        @click="handleClick(sticker)"
+        @contextmenu.prevent="resetSticker(sticker)"
+        @touchstart="startPress(sticker)"
+        @touchend="endPress"
+        @touchmove="endPress"
       >
         <div class="sticker">
           <div class="sticker-face">
             <span class="sticker-code">{{ sticker.figura }}</span>
-            <div v-if="sticker.obtenida" class="check-badge">✓</div>
+            <div v-if="sticker.tiene" class="check-badge">✓</div>
+            <div v-if="sticker.repetidas > 0" :key="'badge-' + sticker.repetidas" class="repeat-badge">{{ sticker.repetidas }}</div>
           </div>
         </div>
       </div>
@@ -41,6 +46,10 @@ const props = defineProps({
   searchQuery: {
     type: String,
     default: ''
+  },
+  readOnly: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -50,9 +59,11 @@ const filteredStickers = computed(() => {
   let result = props.country.figuritas;
 
   if (props.filterType === 'obtained') {
-    result = result.filter(f => f.obtenida);
+    result = result.filter(f => f.tiene);
   } else if (props.filterType === 'missing') {
-    result = result.filter(f => !f.obtenida);
+    result = result.filter(f => !f.tiene);
+  } else if (props.filterType === 'repeated') {
+    result = result.filter(f => f.repetidas > 0);
   }
 
   const query = props.searchQuery.toLowerCase().trim();
@@ -68,8 +79,34 @@ const filteredStickers = computed(() => {
   return result;
 });
 
-const toggleSticker = (sticker) => {
-  emit('update-sticker', props.country.codigo, sticker.figura, !sticker.obtenida);
+const handleClick = (sticker) => {
+  if (props.readOnly) return;
+  if (!sticker.tiene) {
+    emit('update-sticker', props.country.codigo, sticker.figura, true, 0);
+  } else {
+    emit('update-sticker', props.country.codigo, sticker.figura, true, sticker.repetidas + 1);
+  }
+};
+
+const resetSticker = (sticker) => {
+  if (props.readOnly) return;
+  if (sticker.tiene) {
+    if (confirm('¿Deseas marcar esta figurita como no obtenida?')) {
+      emit('update-sticker', props.country.codigo, sticker.figura, false, 0);
+    }
+  }
+};
+
+let pressTimer = null;
+const startPress = (sticker) => {
+  if (props.readOnly) return;
+  pressTimer = setTimeout(() => {
+    resetSticker(sticker);
+  }, 600); // 600ms para long press
+};
+
+const endPress = () => {
+  if (pressTimer) clearTimeout(pressTimer);
 };
 </script>
 
@@ -179,9 +216,33 @@ const toggleSticker = (sticker) => {
   animation: popIn 0.3s var(--ease-spring);
 }
 
+.repeat-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  background: var(--wc-red);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 900;
+  font-size: 0.8rem;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  animation: popBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
 @keyframes popIn {
   0% { transform: scale(0); }
   100% { transform: scale(1); }
+}
+
+@keyframes popBounce {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* Obtained State */

@@ -1,81 +1,7 @@
 <template>
   <div class="home">
-    <!-- Hero Progress Section -->
-    <div class="hero-section">
-      <div class="hero-content">
-        <div class="hero-left">
-          <h2 class="hero-title">
-            Tu <span class="gradient-text">Colección</span>
-          </h2>
-          <p class="hero-subtitle">FIFA World Cup 2026™</p>
-        </div>
-        <div class="hero-right">
-          <div class="progress-ring-container">
-            <svg class="progress-ring" viewBox="0 0 120 120">
-              <circle class="ring-bg" cx="60" cy="60" r="52" />
-              <circle
-                class="ring-fill"
-                cx="60" cy="60" r="52"
-                :style="{ strokeDashoffset: ringOffset }"
-              />
-            </svg>
-            <div class="ring-label">
-              <span class="ring-percentage">{{ globalPercentage }}%</span>
-            </div>
-          </div>
-          <div class="progress-detail">
-            <span class="progress-count">{{ progresoTotal }}</span>
-            <span class="progress-divider">/</span>
-            <span class="progress-total">994</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Toolbar: Search, Filters, Sort -->
-    <div class="toolbar">
-      <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input 
-          type="text" 
-          v-model="searchQuery" 
-          placeholder="Buscar país, código o figurita..."
-          class="search-input"
-        />
-        <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</button>
-      </div>
-      
-      <div class="controls">
-        <div class="filter-group">
-          <button 
-            v-for="f in filters" :key="f.value"
-            :class="['filter-btn', { active: filterType === f.value }]" 
-            @click="filterType = f.value"
-          >{{ f.label }}</button>
-        </div>
-
-        <div class="sort-group">
-          <select v-model="sortBy" class="sort-select">
-            <option value="country">Por País</option>
-            <option value="progress-desc">Mayor Progreso</option>
-            <option value="progress-asc">Menor Progreso</option>
-          </select>
-        </div>
-        
-        <button v-if="userId" @click="shareProgress" class="share-btn">
-          <span class="share-icon">🔗</span>
-          Compartir Progreso
-        </button>
-      </div>
-    </div>
-
-    <!-- Loading State with Skeleton -->
-    <div v-if="loading" class="skeleton-grid">
-      <div v-for="i in 12" :key="i" class="skeleton-card">
-        <div class="skeleton skeleton-title"></div>
-        <div class="skeleton skeleton-bar"></div>
-        <div class="skeleton skeleton-footer"></div>
-      </div>
+    <div v-if="loading" class="feedback-card">
+      <h2>Cargando colección...</h2>
     </div>
 
     <div v-else-if="error" class="feedback-card error">
@@ -84,6 +10,70 @@
     </div>
 
     <div v-else>
+      <!-- Hero Progress Section -->
+      <div class="hero-section">
+        <div class="hero-content">
+          <div class="hero-left">
+            <h2 class="hero-title">
+              Colección <span class="gradient-text">Compartida</span>
+            </h2>
+            <p class="hero-subtitle">Modo de solo lectura</p>
+          </div>
+          <div class="hero-right">
+            <div class="progress-ring-container">
+              <svg class="progress-ring" viewBox="0 0 120 120">
+                <circle class="ring-bg" cx="60" cy="60" r="52" />
+                <circle
+                  class="ring-fill"
+                  cx="60" cy="60" r="52"
+                  :style="{ strokeDashoffset: ringOffset }"
+                />
+              </svg>
+              <div class="ring-label">
+                <span class="ring-percentage">{{ globalPercentage }}%</span>
+              </div>
+            </div>
+            <div class="progress-detail">
+              <span class="progress-count">{{ progresoTotal }}</span>
+              <span class="progress-divider">/</span>
+              <span class="progress-total">994</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toolbar: Search, Filters, Sort -->
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            placeholder="Buscar país, código o figurita..."
+            class="search-input"
+          />
+          <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</button>
+        </div>
+        
+        <div class="controls">
+          <div class="filter-group">
+            <button 
+              v-for="f in filters" :key="f.value"
+              :class="['filter-btn', { active: filterType === f.value }]" 
+              @click="filterType = f.value"
+            >{{ f.label }}</button>
+          </div>
+
+          <div class="sort-group">
+            <select v-model="sortBy" class="sort-select">
+              <option value="country">Por País</option>
+              <option value="progress-desc">Mayor Progreso</option>
+              <option value="progress-asc">Menor Progreso</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div v-if="filteredAndSortedColeccion.length === 0" class="feedback-card empty">
         <span class="feedback-icon">🔎</span>
         <p>No se encontraron resultados para "<strong>{{ searchQuery }}</strong>"</p>
@@ -117,7 +107,7 @@
             :country="selectedCountry"
             :filter-type="filterType"
             :search-query="searchQuery"
-            @update-sticker="handleUpdateSticker"
+            :read-only="true"
           />
         </div>
       </div>
@@ -156,9 +146,8 @@ const globalPercentage = computed(() => {
   return ((progresoTotal.value / 994) * 100).toFixed(0);
 });
 
-// SVG ring offset calculation
 const ringOffset = computed(() => {
-  const circumference = 2 * Math.PI * 52; // r=52
+  const circumference = 2 * Math.PI * 52;
   const percent = progresoTotal.value / 994;
   return circumference - (percent * circumference);
 });
@@ -202,24 +191,20 @@ const filteredAndSortedColeccion = computed(() => {
   return result;
 });
 
-const userId = ref(null);
-
 const fetchColeccion = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const idUsuario = route.params.id;
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const res = await axios.get(`${apiUrl}/api/coleccion`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await axios.get(`${apiUrl}/api/coleccion/share/${idUsuario}`);
+    
     coleccion.value = res.data.data.coleccion;
     progresoTotal.value = res.data.data.progreso_total;
-    userId.value = res.data.data.id_usuario;
     
     if (route.query.country) {
       selectedCountry.value = coleccion.value.find(c => c.codigo === route.query.country) || null;
     }
   } catch (err) {
-    error.value = 'Error al cargar la colección. Por favor, intenta de nuevo.';
+    error.value = 'Error al cargar la colección. Es posible que el link sea inválido o el usuario no exista.';
   } finally {
     loading.value = false;
   }
@@ -249,56 +234,10 @@ const closeModal = () => {
   delete query.country;
   router.push({ query });
 };
-
-const handleUpdateSticker = async (codigo_pais, figura, nuevaTiene, repetidas) => {
-  try {
-    const token = localStorage.getItem('token');
-    const country = coleccion.value.find(c => c.codigo === codigo_pais);
-    if (country) {
-      const sticker = country.figuritas.find(f => f.figura === figura);
-      if (sticker) {
-        sticker.tiene = nuevaTiene;
-        sticker.repetidas = repetidas;
-      }
-    }
-    
-    let total = 0;
-    coleccion.value.forEach(c => {
-      c.figuritas.forEach(f => {
-        if (f.tiene) total++;
-      });
-    });
-    progresoTotal.value = total;
-
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    await axios.put(`${apiUrl}/api/coleccion/figurita`, {
-      codigo_pais,
-      figura,
-      tiene: nuevaTiene,
-      repetidas: repetidas
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-  } catch (err) {
-    console.error('Error al actualizar figurita', err);
-    alert('No se pudo guardar la figurita en el servidor.');
-  }
-};
-
-const shareProgress = () => {
-  if (!userId.value) return;
-  const shareUrl = `${window.location.origin}/share/${userId.value}`;
-  navigator.clipboard.writeText(shareUrl).then(() => {
-    alert('¡Link copiado al portapapeles!\n' + shareUrl);
-  }).catch(() => {
-    prompt('Copia este link para compartir:', shareUrl);
-  });
-};
 </script>
 
 <style scoped>
-/* Hero Section */
+/* Resumen de estilos necesarios (los mismos que Home.vue) */
 .hero-section {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
@@ -356,7 +295,6 @@ const shareProgress = () => {
   gap: 1.5rem;
 }
 
-/* Progress Ring */
 .progress-ring-container {
   position: relative;
   width: 90px;
@@ -423,7 +361,6 @@ const shareProgress = () => {
   font-weight: 600;
 }
 
-/* Toolbar */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -459,10 +396,6 @@ const shareProgress = () => {
   transition: all 0.3s;
 }
 
-.search-input::placeholder {
-  color: var(--text-muted);
-}
-
 .search-input:focus {
   outline: none;
   border-color: var(--wc-mint);
@@ -485,12 +418,6 @@ const shareProgress = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-}
-
-.search-clear:hover {
-  background: var(--wc-red);
-  color: white;
 }
 
 .controls {
@@ -521,10 +448,6 @@ const shareProgress = () => {
   font-family: 'Outfit', sans-serif;
 }
 
-.filter-btn:hover {
-  color: var(--text-primary);
-}
-
 .filter-btn.active {
   background: var(--wc-mint);
   color: var(--bg-color);
@@ -540,97 +463,26 @@ const shareProgress = () => {
   font-size: 0.85rem;
   cursor: pointer;
   font-family: 'Outfit', sans-serif;
-  transition: border-color 0.3s;
 }
 
-.sort-select:focus {
-  outline: none;
-  border-color: var(--wc-mint);
-}
-
-.share-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: var(--wc-purple);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  font-family: 'Outfit', sans-serif;
-  transition: all 0.3s;
-  box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3);
-}
-
-.share-btn:hover {
-  background: #5a4bd1;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(108, 92, 231, 0.4);
-}
-
-.share-btn:active {
-  transform: translateY(0);
-}
-
-/* Grid */
 .countries-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.25rem;
 }
 
-/* Grid item transitions */
 .grid-item-enter-active {
   transition: all 0.4s var(--ease-smooth);
 }
 .grid-item-leave-active {
   transition: all 0.3s var(--ease-smooth);
 }
-.grid-item-enter-from {
-  opacity: 0;
-  transform: scale(0.92);
-}
+.grid-item-enter-from,
 .grid-item-leave-to {
   opacity: 0;
   transform: scale(0.92);
 }
 
-/* Skeleton Grid */
-.skeleton-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.25rem;
-}
-
-.skeleton-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.skeleton-title {
-  height: 24px;
-  width: 60%;
-}
-
-.skeleton-bar {
-  height: 10px;
-  width: 100%;
-}
-
-.skeleton-footer {
-  height: 18px;
-  width: 40%;
-}
-
-/* Feedback Cards */
 .feedback-card {
   text-align: center;
   padding: 4rem 2rem;
@@ -658,7 +510,6 @@ const shareProgress = () => {
   color: var(--wc-red);
 }
 
-/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -739,7 +590,6 @@ const shareProgress = () => {
   transform: rotate(90deg);
 }
 
-/* Modal Transitions */
 .modal-enter-active {
   transition: opacity 0.3s;
 }
@@ -766,7 +616,6 @@ const shareProgress = () => {
   to { opacity: 0; transform: translateY(15px) scale(0.97); }
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .hero-title {
     font-size: 1.6rem;
